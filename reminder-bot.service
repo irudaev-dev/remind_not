@@ -1,0 +1,16 @@
+[Unit]
+Description=Telegram Reminder Bot
+After=network.target
+
+[Service]
+Type=simple
+# Замени "ubuntu" на своего пользователя если другой
+User=ubuntu
+WorkingDirectory=/opt/reminder_bot
+EnvironmentFile=/opt/reminder_bot/.env
+ExecStart=/opt/reminder_bot/venv/bin/python bot.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
