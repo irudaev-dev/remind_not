@@ -18,6 +18,7 @@ _HAS_TIME_RE = re.compile(
     r'|утром|вечером|ночью|днём|днем'            # time-of-day words
     r'|in\s+\d+\s+(?:minute|hour)'              # "in 2 hours"
     r'|at\s+\d{1,2}'                             # "at 18"
+    r'|(?:завтра|послезавтра|tomorrow)\s+\d{1,2}\b'  # "завтра 18"
     r')',
     re.I | re.U,
 )
@@ -53,6 +54,14 @@ _RECURRENCE_STRIP_RE = re.compile(
 # "в 11" → "в 11:00", but not "в 11:30" (already has minutes)
 _BARE_HOUR_RE = re.compile(r'\bв\s+(\d{1,2})\b(?!\s*[:.]\d)', re.U)
 
+# "завтра 18" / "в пятницу 9" → insert "в" before bare hour after day word
+_DAY_HOUR_RE = re.compile(
+    r'\b(завтра|послезавтра|понедельник|вторник|среду?|четверг|пятницу|субботу|воскресенье'
+    r'|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)'
+    r'\s+(\d{1,2})\b(?!\s*[:.]\d)',
+    re.I | re.U,
+)
+
 # "утром"→"09:00", "днём/днем"→"13:00", "вечером"→"18:00", "ночью"→"22:00"
 _TIME_WORDS = {
     'утром': '09:00', 'утра': '09:00',
@@ -74,6 +83,8 @@ def _normalize(text: str) -> str:
         if 0 <= h <= 23:
             return f'в {h:02d}:00'
 
+    # "завтра 18" → "завтра в 18:00"
+    text = _DAY_HOUR_RE.sub(lambda m: f'{m.group(1)} в {int(m.group(2)):02d}:00', text)
     # "в 11" → "в 11:00"
     text = _BARE_HOUR_RE.sub(lambda m: f'в {int(m.group(1)):02d}:00', text)
     # "утром" → "09:00" etc. (only when standalone, not after "в")
@@ -161,7 +172,6 @@ def _dp_settings(timezone: str) -> dict:
         'TIMEZONE': timezone,
         'RETURN_AS_TIMEZONE_AWARE': False,
         'PREFER_DATES_FROM': 'future',
-        'PREFER_DAY_OF_MONTH': 'first',
     }
 
 # ── Public API ────────────────────────────────────────────────────────────────
