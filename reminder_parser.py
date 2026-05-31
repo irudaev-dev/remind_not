@@ -18,7 +18,7 @@ _HAS_TIME_RE = re.compile(
     r'|утром|вечером|ночью|днём|днем'            # time-of-day words
     r'|in\s+\d+\s+(?:minute|hour)'              # "in 2 hours"
     r'|at\s+\d{1,2}'                             # "at 18"
-    r'|(?:завтра|послезавтра|tomorrow)\s+\d{1,2}\b'  # "завтра 18"
+    r'|(?:сегодня|завтра|послезавтра|today|tomorrow)\s+\d{1,2}\b'  # "сегодня 17" / "завтра 18"
     r')',
     # Also check normalized text (bare number → "в HH:00")
 
@@ -58,8 +58,8 @@ _BARE_HOUR_RE = re.compile(r'\bв\s+(\d{1,2})\b(?!\s*[:.]\d)', re.U)
 
 # "завтра 18" / "в пятницу 9" → insert "в" before bare hour after day word
 _DAY_HOUR_RE = re.compile(
-    r'\b(завтра|послезавтра|понедельник|вторник|среду?|четверг|пятницу|субботу|воскресенье'
-    r'|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)'
+    r'\b(сегодня|завтра|послезавтра|понедельник|вторник|среду?|четверг|пятницу|субботу|воскресенье'
+    r'|today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)'
     r'\s+(\d{1,2})\b(?!\s*[:.]\d)',
     re.I | re.U,
 )
