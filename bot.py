@@ -56,6 +56,7 @@ RECURRENCE_LABELS = {
 # ── FSM states ────────────────────────────────────────────────────────────────
 
 class EditState(StatesGroup):
+    waiting_choice = State()       # user pressed ✏️ but hasn't chosen Text/Time yet
     waiting_body = State()
     waiting_time = State()
     waiting_custom_snooze = State()
@@ -976,7 +977,7 @@ async def cb_cancel_action(cq: CallbackQuery):
 # ── Edit callbacks ────────────────────────────────────────────────────────────
 
 @dp.callback_query(F.data.startswith("edit:"))
-async def cb_edit(cq: CallbackQuery):
+async def cb_edit(cq: CallbackQuery, state: FSMContext):
     if not await has_access(cq.message.chat.id):
         return
     reminder_id = int(cq.data.split(":")[1])
@@ -990,7 +991,16 @@ async def cb_edit(cq: CallbackQuery):
         parse_mode="HTML",
         reply_markup=edit_choice_keyboard(reminder_id),
     )
+    await state.set_state(EditState.waiting_choice)
     await cq.answer()
+
+
+@dp.message(StateFilter(EditState.waiting_choice))
+async def receive_edit_choice_text(msg: Message):
+    await msg.answer(
+        "Нажми кнопку выше: <b>Текст</b> или <b>Время</b>.\n/cancel — отмена",
+        parse_mode="HTML",
+    )
 
 
 @dp.callback_query(F.data.startswith("edit_body:"))

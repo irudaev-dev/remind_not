@@ -20,6 +20,8 @@ _HAS_TIME_RE = re.compile(
     r'|at\s+\d{1,2}'                             # "at 18"
     r'|(?:завтра|послезавтра|tomorrow)\s+\d{1,2}\b'  # "завтра 18"
     r')',
+    # Also check normalized text (bare number → "в HH:00")
+
     re.I | re.U,
 )
 
@@ -203,7 +205,8 @@ async def parse_reminder(text: str, timezone: str) -> dict:
         }
 
     # No explicit time in message → use current time instead of dateparser default (midnight)
-    if not _HAS_TIME_RE.search(text):
+    # Check both original and normalized ("18" → "в 18:00" is still explicit time)
+    if not _HAS_TIME_RE.search(text) and not _HAS_TIME_RE.search(normalized):
         now = datetime.now(ZoneInfo(timezone)).replace(tzinfo=None)
         dt = dt.replace(hour=now.hour, minute=now.minute, second=0)
 
