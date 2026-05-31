@@ -103,21 +103,16 @@ async def add_reminder(chat_id: int, body: str, remind_at: datetime,
         return cur.lastrowid
 
 
-async def get_pending_reminders(chat_id: int, page: int = 0,
-                                per_page: int = 5) -> tuple:
+async def get_pending_reminders(chat_id: int) -> list:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         cur = await db.execute(
-            "SELECT COUNT(*) FROM reminders WHERE chat_id=? AND done=0", (chat_id,)
-        )
-        total = (await cur.fetchone())[0]
-        cur = await db.execute(
             "SELECT id, body, remind_at, recurrence FROM reminders"
-            " WHERE chat_id=? AND done=0 ORDER BY remind_at LIMIT ? OFFSET ?",
-            (chat_id, per_page, page * per_page),
+            " WHERE chat_id=? AND done=0 ORDER BY remind_at",
+            (chat_id,),
         )
         rows = await cur.fetchall()
-    return [dict(r) for r in rows], total
+    return [dict(r) for r in rows]
 
 
 async def get_reminder(reminder_id: int) -> Optional[dict]:

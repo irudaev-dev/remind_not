@@ -44,7 +44,6 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-PER_PAGE = 5
 RECURRENCE_LABELS = {
     "daily": "🔁 каждый день",
     "weekly": "🔁 каждую неделю",
@@ -591,25 +590,23 @@ async def cmd_cancel(msg: Message, state: FSMContext):
 async def cmd_list(msg: Message):
     if not await has_access(msg.chat.id):
         return
-    await _show_list(msg.chat.id, page=0, send_new=True, reply_to=msg)
+    await _show_list(msg.chat.id, send_new=True, reply_to=msg)
 
 
-async def _show_list(chat_id: int, page: int, send_new: bool = False,
+async def _show_list(chat_id: int, send_new: bool = False,
                      reply_to: Optional[Message] = None, edit_msg: Optional[Message] = None):
-    reminders, total = await db.get_pending_reminders(chat_id, page, PER_PAGE)
-    total_pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+    reminders = await db.get_pending_reminders(chat_id)
 
     if not reminders:
         text = "📋 Нет активных напоминаний."
         kb = None
     else:
-        page_offset = page * PER_PAGE
-        lines = [f"📋 <b>Напоминания</b> (стр. {page + 1}/{total_pages}):\n"]
-        for i, r in enumerate(reminders, start=page_offset + 1):
+        lines = ["📋 <b>Напоминания:</b>\n"]
+        for i, r in enumerate(reminders, start=1):
             rec = RECURRENCE_LABELS.get(r["recurrence"], "")
             lines.append(f"<b>#{i}</b>  {fmt_dt(r['remind_at'])}  {rec}\n{r['body']}\n")
         text = "\n".join(lines)
-        kb = list_keyboard(reminders, page, total_pages, page_offset)
+        kb = list_keyboard(reminders)
 
     if edit_msg:
         await edit_msg.edit_text(text, parse_mode="HTML", reply_markup=kb)
@@ -617,15 +614,6 @@ async def _show_list(chat_id: int, page: int, send_new: bool = False,
         await reply_to.answer(text, parse_mode="HTML", reply_markup=kb)
     elif send_new:
         await bot.send_message(chat_id, text, parse_mode="HTML", reply_markup=kb)
-
-
-@dp.callback_query(F.data.startswith("list_page:"))
-async def cb_list_page(cq: CallbackQuery):
-    if not await has_access(cq.message.chat.id):
-        return
-    page = int(cq.data.split(":")[1])
-    await _show_list(cq.message.chat.id, page, edit_msg=cq.message)
-    await cq.answer()
 
 
 # ── /settings ─────────────────────────────────────────────────────────────────

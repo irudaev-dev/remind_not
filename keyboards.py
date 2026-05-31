@@ -182,20 +182,14 @@ def edit_choice_keyboard(reminder_id: int) -> InlineKeyboardMarkup:
     ])
 
 
-def list_keyboard(reminders: list, page: int, total_pages: int, page_offset: int = 0) -> InlineKeyboardMarkup:
-    rows = []
-    for i, r in enumerate(reminders, start=page_offset + 1):
-        rows.append([
+def list_keyboard(reminders: list) -> InlineKeyboardMarkup:
+    rows = [
+        [
             InlineKeyboardButton(text=f"✏️ {i}", callback_data=f"edit:{r['id']}"),
             InlineKeyboardButton(text=f"🗑 {i}", callback_data=f"delete:{r['id']}"),
-        ])
-    nav = []
-    if page > 0:
-        nav.append(InlineKeyboardButton(text="◀ Назад", callback_data=f"list_page:{page - 1}"))
-    if page < total_pages - 1:
-        nav.append(InlineKeyboardButton(text="Вперёд ▶", callback_data=f"list_page:{page + 1}"))
-    if nav:
-        rows.append(nav)
+        ]
+        for i, r in enumerate(reminders, start=1)
+    ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
