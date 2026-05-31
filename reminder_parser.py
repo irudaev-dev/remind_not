@@ -55,6 +55,8 @@ _RECURRENCE_STRIP_RE = re.compile(
 
 # "в 11" → "в 11:00", but not "в 11:30" (already has minutes)
 _BARE_HOUR_RE = re.compile(r'\bв\s+(\d{1,2})\b(?!\s*[:.]\d)', re.U)
+# Bare number 0-23 at the end of any text: "забрать 19" → time 19:00
+_TRAILING_BARE_HOUR_RE = re.compile(r'(?<![:.0-9])(\d{1,2})\s*$', re.U)
 
 # "завтра 18" / "в пятницу 9" → insert "в" before bare hour after day word
 _DAY_HOUR_RE = re.compile(
@@ -96,6 +98,12 @@ def _normalize(text: str) -> str:
             return m.group(0)
         return _TIME_WORDS[m.group(1).lower()]
     text = _TIME_WORD_RE.sub(_replace_word, text)
+    # Trailing bare hour: "забрать 19" → "забрать в 19:00"
+    m = _TRAILING_BARE_HOUR_RE.search(text)
+    if m:
+        h = int(m.group(1))
+        if 0 <= h <= 23 and not re.search(r'в\s*$', text[:m.start()].rstrip()):
+            text = text[:m.start()].rstrip() + f' в {h:02d}:00'
     return text
 
 
@@ -122,6 +130,7 @@ _DATE_RE = re.compile(
     r'|at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?'
     r'|every\s+\w+'
     r'|daily|weekly|monthly|weekdays'
+    r'|(?<![:.0-9])\b(?:[01]?\d|2[0-3])\b(?=\s*$)'  # trailing bare hour "забрать 19"
     r')\b',
     re.I | re.U,
 )
