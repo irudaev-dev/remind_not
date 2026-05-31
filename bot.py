@@ -25,7 +25,7 @@ import google_calendar as gcal_mod
 from keyboards import (
     SNOOZE_LABELS, settings_snooze_keyboard, snooze_keyboard,
     confirm_delete_keyboard, edit_choice_keyboard, list_keyboard,
-    user_approval_keyboard, users_list_keyboard,
+    new_reminder_keyboard, user_approval_keyboard, users_list_keyboard,
     calendar_main_keyboard, calendar_list_keyboard,
     timezone_choice_keyboard, timezone_regions_keyboard, timezone_list_keyboard,
 )
@@ -947,8 +947,8 @@ async def cb_confirm_delete(cq: CallbackQuery):
             asyncio.create_task(_cal_delete_uid(cq.message.chat.id, cal_uid))
         if google_event_id:
             asyncio.create_task(_gcal_delete_id(cq.message.chat.id, google_event_id))
-        await cq.message.edit_text("✅ Напоминание удалено.", reply_markup=None)
         await cq.answer("Удалено")
+        await _show_list(cq.message.chat.id, edit_msg=cq.message)
     else:
         await cq.message.edit_text("Напоминание не найдено.", reply_markup=None)
         await cq.answer()
@@ -1026,7 +1026,7 @@ async def receive_new_body(msg: Message, state: FSMContext):
     data = await state.get_data()
     await state.clear()
     await db.update_reminder_body(data["reminder_id"], msg.text.strip())
-    await msg.answer(f"✅ Текст обновлён:\n{msg.text.strip()}")
+    await _show_list(msg.chat.id, send_new=True)
 
 
 @dp.message(StateFilter(EditState.waiting_time))
@@ -1052,7 +1052,7 @@ async def receive_new_time(msg: Message, state: FSMContext):
     await state.clear()
     new_dt = datetime.fromisoformat(result["remind_at"])
     await db.update_reminder_time(data["reminder_id"], new_dt)
-    await thinking.edit_text(f"✅ Время обновлено: {fmt_dt(result['remind_at'])}")
+    await _show_list(msg.chat.id, edit_msg=thinking)
 
 
 # ── Main text handler — parse new reminder ────────────────────────────────────
@@ -1098,7 +1098,8 @@ async def handle_text(msg: Message, state: FSMContext):
         f"✅ Напоминание сохранено!\n\n"
         f"📝 {body}\n"
         f"🕐 {fmt_dt(result['remind_at'])}"
-        + (f"\n{rec_label}" if rec_label else "")
+        + (f"\n{rec_label}" if rec_label else ""),
+        reply_markup=new_reminder_keyboard(rid),
     )
 
 
@@ -1135,7 +1136,8 @@ async def receive_reminder_time(msg: Message, state: FSMContext):
     await thinking.edit_text(
         f"✅ Напоминание сохранено!\n\n"
         f"📝 {body}\n"
-        f"🕐 {fmt_dt(result['remind_at'])}"
+        f"🕐 {fmt_dt(result['remind_at'])}",
+        reply_markup=new_reminder_keyboard(rid),
     )
 
 
