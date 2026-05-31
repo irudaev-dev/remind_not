@@ -168,7 +168,7 @@ def users_list_keyboard(users: list) -> InlineKeyboardMarkup:
 def new_reminder_keyboard(reminder_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="✏️ Изменить время", callback_data=f"edit_time:{reminder_id}"),
-        InlineKeyboardButton(text="❌ Отменить", callback_data=f"delete:{reminder_id}"),
+        InlineKeyboardButton(text="❌ Отменить", callback_data=f"quick_delete:{reminder_id}"),
     ]])
 
 

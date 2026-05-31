@@ -954,11 +954,27 @@ async def cb_confirm_delete(cq: CallbackQuery):
         await cq.answer()
 
 
+@dp.callback_query(F.data.startswith("quick_delete:"))
+async def cb_quick_delete(cq: CallbackQuery):
+    if not await has_access(cq.message.chat.id):
+        return
+    reminder_id = int(cq.data.split(":")[1])
+    reminder = await db.get_reminder(reminder_id)
+    cal_uid = reminder.get("calendar_uid") if reminder else None
+    google_event_id = reminder.get("google_event_id") if reminder else None
+    await db.delete_reminder(reminder_id, cq.message.chat.id)
+    if cal_uid:
+        asyncio.create_task(_cal_delete_uid(cq.message.chat.id, cal_uid))
+    if google_event_id:
+        asyncio.create_task(_gcal_delete_id(cq.message.chat.id, google_event_id))
+    await cq.message.edit_text("✅ Напоминание отменено.", reply_markup=None)
+    await cq.answer("Отменено")
+
+
 @dp.callback_query(F.data.startswith("cancel_action:"))
 async def cb_cancel_action(cq: CallbackQuery):
-    # Restore list view after cancel
     await cq.message.delete()
-    await _show_list(cq.message.chat.id, page=0, send_new=True)
+    await _show_list(cq.message.chat.id, send_new=True)
     await cq.answer("Отменено")
 
 
