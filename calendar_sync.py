@@ -44,7 +44,8 @@ def _list_calendars(username: str, password: str) -> list:
 
 
 def _create_event(username: str, password: str, calendar_url: str,
-                  uid: str, summary: str, dtstart: datetime):
+                  uid: str, summary: str, dtstart: datetime) -> str:
+    """Returns the event href (URL path) for later deletion."""
     cal = icalendar.Calendar()
     cal.add("prodid", "-//ReminderBot//EN")
     cal.add("version", "2.0")
@@ -58,7 +59,8 @@ def _create_event(username: str, password: str, calendar_url: str,
     cal.add_component(ev)
 
     calendar = _calendar_client(username, password, calendar_url)
-    calendar.add_event(cal.to_ical().decode("utf-8"))
+    result = calendar.add_event(cal.to_ical().decode("utf-8"))
+    return str(result.url)
 
 
 def _update_event(username: str, password: str, calendar_url: str,
@@ -88,19 +90,35 @@ def _update_event(username: str, password: str, calendar_url: str,
     obj.save()
 
 
-def _delete_event(username: str, password: str, calendar_url: str, uid: str):
+def _delete_event(username: str, password: str, calendar_url: str,
+                  uid: str, event_href: str = ""):
+    """Delete by direct URL if href is known; otherwise fall back to uid search."""
+    parsed = urlparse(calendar_url)
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    client = caldav.DAVClient(url=base, username=username, password=password)
+
+    if event_href:
+        try:
+            event = caldav.CalendarObjectResource(client=client, url=event_href)
+            event.delete()
+            return
+        except Exception:
+            pass
+
+    # Fallback: iterate all events and find by UID (avoids REPORT/412)
     calendar = _calendar_client(username, password, calendar_url)
-    # event_by_uid is more reliable with iCloud than search(uid=)
-    try:
-        event = calendar.event_by_uid(uid)
-        event.delete()
-        return
-    except Exception:
-        pass
-    # Fallback: search by uid
-    results = calendar.search(uid=uid)
-    if results:
-        results[0].delete()
+    for event in calendar.objects():
+        try:
+            raw = event.data
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", errors="ignore")
+            parsed_cal = icalendar.Calendar.from_ical(raw)
+            for comp in parsed_cal.walk():
+                if comp.name == "VEVENT" and str(comp.get("uid", "")) == uid:
+                    event.delete()
+                    return
+        except Exception:
+            continue
 
 
 # ── Async wrappers ────────────────────────────────────────────────────────────
@@ -115,8 +133,9 @@ async def list_calendars(username: str, password: str) -> list:
 
 
 async def create_event(username: str, password: str, calendar_url: str,
-                       uid: str, summary: str, dtstart: datetime):
-    await _run(_create_event, username, password, calendar_url, uid, summary, dtstart)
+                       uid: str, summary: str, dtstart: datetime) -> str:
+    """Returns the event href URL."""
+    return await _run(_create_event, username, password, calendar_url, uid, summary, dtstart)
 
 
 async def update_event(username: str, password: str, calendar_url: str,
@@ -124,8 +143,9 @@ async def update_event(username: str, password: str, calendar_url: str,
     await _run(_update_event, username, password, calendar_url, uid, new_dtstart)
 
 
-async def delete_event(username: str, password: str, calendar_url: str, uid: str):
-    await _run(_delete_event, username, password, calendar_url, uid)
+async def delete_event(username: str, password: str, calendar_url: str,
+                       uid: str, event_href: str = ""):
+    await _run(_delete_event, username, password, calendar_url, uid, event_href)
 
 
 def new_uid() -> str:

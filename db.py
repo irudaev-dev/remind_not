@@ -44,6 +44,7 @@ _MIGRATIONS = [
     "ALTER TABLE user_settings ADD COLUMN google_access_token TEXT",
     "ALTER TABLE user_settings ADD COLUMN google_refresh_token TEXT",
     "ALTER TABLE user_settings ADD COLUMN google_calendar_id TEXT",
+    "ALTER TABLE reminders ADD COLUMN calendar_event_href TEXT",
 ]
 
 
@@ -258,6 +259,12 @@ async def clear_calendar_settings(chat_id: int):
 async def set_reminder_calendar_uid(reminder_id: int, uid: str):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE reminders SET calendar_uid=? WHERE id=?", (uid, reminder_id))
+        await db.commit()
+
+
+async def set_reminder_calendar_href(reminder_id: int, href: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE reminders SET calendar_event_href=? WHERE id=?", (href, reminder_id))
         await db.commit()
 
 

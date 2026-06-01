@@ -95,9 +95,11 @@ async def _cal_create(chat_id: int, reminder_id: int, body: str, remind_at: date
         return
     try:
         uid = calendar_sync.new_uid()
-        await calendar_sync.create_event(cal["username"], cal["password"],
-                                         cal["calendar_url"], uid, body, remind_at)
+        href = await calendar_sync.create_event(cal["username"], cal["password"],
+                                                 cal["calendar_url"], uid, body, remind_at)
         await db.set_reminder_calendar_uid(reminder_id, uid)
+        if href:
+            await db.set_reminder_calendar_href(reminder_id, href)
     except Exception as e:
         log.warning("Calendar create failed: %s", e)
 
@@ -180,19 +182,16 @@ async def _gcal_delete_id(chat_id: int, event_id: str):
         log.warning("Google delete failed: %s", e)
 
 
-async def _cal_delete_uid(chat_id: int, uid: str):
-    """Delete calendar event by uid directly (use when reminder is already removed from DB)."""
+async def _cal_delete_uid(chat_id: int, uid: str, href: str = ""):
+    """Delete calendar event by href (preferred) or uid fallback."""
     cal = await db.get_calendar_settings(chat_id)
-    log.info("CAL_DELETE uid=%s cal_configured=%s", uid, bool(cal))
     if not cal or not uid:
-        log.warning("CAL_DELETE skipped: cal=%s uid=%s", bool(cal), uid)
         return
     try:
         await calendar_sync.delete_event(cal["username"], cal["password"],
-                                         cal["calendar_url"], uid)
-        log.info("CAL_DELETE success uid=%s", uid)
+                                         cal["calendar_url"], uid, href)
     except Exception as e:
-        log.warning("CAL_DELETE failed uid=%s error=%s", uid, e)
+        log.warning("Calendar delete failed: %s", e)
 
 
 async def get_tz(chat_id: int) -> str:
@@ -942,13 +941,13 @@ async def cb_confirm_delete(cq: CallbackQuery):
     # Grab calendar_uid BEFORE deletion so the async task can use it safely
     reminder = await db.get_reminder(reminder_id)
     cal_uid = reminder.get("calendar_uid") if reminder else None
+    cal_href = reminder.get("calendar_event_href", "") if reminder else ""
     google_event_id = reminder.get("google_event_id") if reminder else None
-    log.info("CONFIRM_DELETE id=%s cal_uid=%s", reminder_id, cal_uid)
 
     deleted = await db.delete_reminder(reminder_id, cq.message.chat.id)
     if deleted:
         if cal_uid:
-            asyncio.create_task(_cal_delete_uid(cq.message.chat.id, cal_uid))
+            asyncio.create_task(_cal_delete_uid(cq.message.chat.id, cal_uid, cal_href))
         if google_event_id:
             asyncio.create_task(_gcal_delete_id(cq.message.chat.id, google_event_id))
         await cq.answer("Удалено")
@@ -965,10 +964,11 @@ async def cb_quick_delete(cq: CallbackQuery):
     reminder_id = int(cq.data.split(":")[1])
     reminder = await db.get_reminder(reminder_id)
     cal_uid = reminder.get("calendar_uid") if reminder else None
+    cal_href = reminder.get("calendar_event_href", "") if reminder else ""
     google_event_id = reminder.get("google_event_id") if reminder else None
     await db.delete_reminder(reminder_id, cq.message.chat.id)
     if cal_uid:
-        asyncio.create_task(_cal_delete_uid(cq.message.chat.id, cal_uid))
+        asyncio.create_task(_cal_delete_uid(cq.message.chat.id, cal_uid, cal_href))
     if google_event_id:
         asyncio.create_task(_gcal_delete_id(cq.message.chat.id, google_event_id))
     await cq.message.edit_text("✅ Напоминание отменено.", reply_markup=None)
