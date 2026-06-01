@@ -9,6 +9,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
+import logging
 import caldav
 import icalendar
 import requests
@@ -17,6 +18,7 @@ from urllib.parse import urlparse
 
 _pool = ThreadPoolExecutor(max_workers=2)
 _ICLOUD_URL = "https://caldav.icloud.com"
+log = logging.getLogger(__name__)
 
 
 def _auth(username: str, password: str) -> HTTPBasicAuth:
@@ -63,7 +65,16 @@ def _create_event(username: str, password: str, calendar_url: str,
         headers={"Content-Type": "text/calendar; charset=utf-8"},
         timeout=20,
     )
+    log.info("iCloud PUT %s → %d loc=%s", event_url, resp.status_code,
+             resp.headers.get("Location", ""))
     resp.raise_for_status()
+    # iCloud may store the event at a different URL — use Location header if present
+    location = resp.headers.get("Location", "")
+    if location:
+        parsed = urlparse(calendar_url)
+        if location.startswith("/"):
+            location = f"{parsed.scheme}://{parsed.netloc}{location}"
+        return location
     return event_url
 
 
@@ -98,6 +109,7 @@ def _delete_event(username: str, password: str, calendar_url: str,
                   uid: str, event_href: str = ""):
     url = event_href or _event_url(calendar_url, uid)
     resp = requests.delete(url, auth=_auth(username, password), timeout=20)
+    log.info("iCloud DELETE %s → %d", url, resp.status_code)
     if resp.status_code not in (200, 204, 404):
         resp.raise_for_status()
 
