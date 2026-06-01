@@ -64,11 +64,13 @@ def _create_event(username: str, password: str, calendar_url: str,
 def _update_event(username: str, password: str, calendar_url: str,
                   uid: str, new_dtstart: datetime):
     calendar = _calendar_client(username, password, calendar_url)
-    results = calendar.search(uid=uid)
-    if not results:
-        return
-
-    obj = results[0]
+    try:
+        obj = calendar.event_by_uid(uid)
+    except Exception:
+        results = calendar.search(uid=uid)
+        if not results:
+            return
+        obj = results[0]
     raw = obj.data
     if isinstance(raw, str):
         raw = raw.encode()
@@ -88,6 +90,14 @@ def _update_event(username: str, password: str, calendar_url: str,
 
 def _delete_event(username: str, password: str, calendar_url: str, uid: str):
     calendar = _calendar_client(username, password, calendar_url)
+    # event_by_uid is more reliable with iCloud than search(uid=)
+    try:
+        event = calendar.event_by_uid(uid)
+        event.delete()
+        return
+    except Exception:
+        pass
+    # Fallback: search by uid
     results = calendar.search(uid=uid)
     if results:
         results[0].delete()
