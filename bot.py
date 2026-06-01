@@ -112,9 +112,10 @@ async def _cal_update(chat_id: int, reminder_id: int, new_dt: datetime):
     uid = reminder.get("calendar_uid") if reminder else None
     if not uid:
         return
+    href = reminder.get("calendar_event_href", "") or ""
     try:
         await calendar_sync.update_event(cal["username"], cal["password"],
-                                         cal["calendar_url"], uid, new_dt)
+                                         cal["calendar_url"], uid, new_dt, href)
     except Exception as e:
         log.warning("Calendar update failed: %s", e)
 
