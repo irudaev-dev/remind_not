@@ -183,13 +183,16 @@ async def _gcal_delete_id(chat_id: int, event_id: str):
 async def _cal_delete_uid(chat_id: int, uid: str):
     """Delete calendar event by uid directly (use when reminder is already removed from DB)."""
     cal = await db.get_calendar_settings(chat_id)
+    log.info("CAL_DELETE uid=%s cal_configured=%s", uid, bool(cal))
     if not cal or not uid:
+        log.warning("CAL_DELETE skipped: cal=%s uid=%s", bool(cal), uid)
         return
     try:
         await calendar_sync.delete_event(cal["username"], cal["password"],
                                          cal["calendar_url"], uid)
+        log.info("CAL_DELETE success uid=%s", uid)
     except Exception as e:
-        log.warning("Calendar delete failed: %s", e)
+        log.warning("CAL_DELETE failed uid=%s error=%s", uid, e)
 
 
 async def get_tz(chat_id: int) -> str:
@@ -940,6 +943,7 @@ async def cb_confirm_delete(cq: CallbackQuery):
     reminder = await db.get_reminder(reminder_id)
     cal_uid = reminder.get("calendar_uid") if reminder else None
     google_event_id = reminder.get("google_event_id") if reminder else None
+    log.info("CONFIRM_DELETE id=%s cal_uid=%s", reminder_id, cal_uid)
 
     deleted = await db.delete_reminder(reminder_id, cq.message.chat.id)
     if deleted:
