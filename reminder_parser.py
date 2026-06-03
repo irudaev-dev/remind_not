@@ -55,6 +55,14 @@ _RECURRENCE_STRIP_RE = re.compile(
 
 # "в 11" → "в 11:00", but not "в 11:30" (already has minutes)
 _BARE_HOUR_RE = re.compile(r'\bв\s+(\d{1,2})\b(?!\s*[:.]\d)', re.U)
+
+# DD.MM date format (not preceded by "в", not followed by another dot+digits like DD.MM.YYYY)
+_DDMM_RE = re.compile(r'(?<!\d)(\d{1,2})\.(0[1-9]|1[0-2])(?!\d|\.)', re.U)
+_MONTH_NAMES_RU = {
+    '01': 'января', '02': 'февраля', '03': 'марта', '04': 'апреля',
+    '05': 'мая',    '06': 'июня',    '07': 'июля',   '08': 'августа',
+    '09': 'сентября','10': 'октября', '11': 'ноября', '12': 'декабря',
+}
 # Bare number 0-23 at the end of any text: "забрать 19" → time 19:00
 _TRAILING_BARE_HOUR_RE = re.compile(r'(?<![:.0-9])(\d{1,2})\s*$', re.U)
 
@@ -87,6 +95,13 @@ def _normalize(text: str) -> str:
         if 0 <= h <= 23:
             return f'в {h:02d}:00'
 
+    # "14.06" → "14 июня" (DD.MM date, not preceded by "в" which would mean time)
+    def _replace_ddmm(m):
+        preceding = text[:m.start()].rstrip()
+        if preceding.endswith('в') or preceding.endswith(':'):
+            return m.group(0)  # "в 14.06" → keep as time
+        return f"{int(m.group(1))} {_MONTH_NAMES_RU[m.group(2)]}"
+    text = _DDMM_RE.sub(_replace_ddmm, text)
     # "завтра 18" → "завтра в 18:00"
     text = _DAY_HOUR_RE.sub(lambda m: f'{m.group(1)} в {int(m.group(2)):02d}:00', text)
     # "в 11" → "в 11:00"
