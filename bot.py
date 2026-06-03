@@ -24,8 +24,8 @@ import calendar_sync
 import google_calendar as gcal_mod
 from keyboards import (
     SNOOZE_LABELS, settings_snooze_keyboard, snooze_keyboard,
-    confirm_delete_keyboard, edit_choice_keyboard, list_keyboard,
-    new_reminder_keyboard, user_approval_keyboard, users_list_keyboard,
+    confirm_delete_keyboard, edit_choice_keyboard, edit_recurrence_keyboard,
+    list_keyboard, new_reminder_keyboard, user_approval_keyboard, users_list_keyboard,
     calendar_main_keyboard, calendar_list_keyboard,
     timezone_choice_keyboard, timezone_regions_keyboard, timezone_list_keyboard,
 )
@@ -45,10 +45,11 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 RECURRENCE_LABELS = {
-    "daily": "🔁 каждый день",
-    "weekly": "🔁 каждую неделю",
+    "daily":    "🔁 каждый день",
+    "weekly":   "🔁 каждую неделю",
     "weekdays": "🔁 по будням",
-    "monthly": "🔁 каждый месяц",
+    "monthly":  "🔁 каждый месяц",
+    "yearly":   "🔁 каждый год",
 }
 
 
@@ -1038,6 +1039,38 @@ async def cb_edit_time(cq: CallbackQuery, state: FSMContext):
         reply_markup=None,
     )
     await cq.answer()
+
+
+@dp.callback_query(F.data.startswith("edit_recurrence:"))
+async def cb_edit_recurrence(cq: CallbackQuery, state: FSMContext):
+    if not await has_access(cq.message.chat.id):
+        return
+    reminder_id = int(cq.data.split(":")[1])
+    await state.clear()
+    reminder = await db.get_reminder(reminder_id)
+    if not reminder:
+        await cq.answer("Напоминание не найдено.")
+        return
+    rec = RECURRENCE_LABELS.get(reminder.get("recurrence"), "нет")
+    await cq.message.edit_text(
+        f"🔁 Повторение для <b>{reminder['body']}</b>\nТекущее: {rec}",
+        parse_mode="HTML",
+        reply_markup=edit_recurrence_keyboard(reminder_id),
+    )
+    await cq.answer()
+
+
+@dp.callback_query(F.data.startswith("set_recurrence:"))
+async def cb_set_recurrence(cq: CallbackQuery):
+    if not await has_access(cq.message.chat.id):
+        return
+    _, rid, value = cq.data.split(":")
+    reminder_id = int(rid)
+    recurrence = None if value == "none" else value
+    await db.update_reminder_recurrence(reminder_id, recurrence)
+    label = RECURRENCE_LABELS.get(recurrence, "❌ без повторения")
+    await cq.answer(f"Сохранено: {label}")
+    await _show_list(cq.message.chat.id, edit_msg=cq.message)
 
 
 @dp.message(StateFilter(EditState.waiting_body))

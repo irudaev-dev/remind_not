@@ -370,6 +370,12 @@ async def update_reminder_body(reminder_id: int, body: str):
         await db.commit()
 
 
+async def update_reminder_recurrence(reminder_id: int, recurrence: Optional[str]):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE reminders SET recurrence=? WHERE id=?", (recurrence, reminder_id))
+        await db.commit()
+
+
 async def update_reminder_time(reminder_id: int, remind_at: datetime):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(

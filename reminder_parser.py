@@ -42,12 +42,13 @@ _RECURRENCE: list = [
     (re.compile(r'\b(каждую неделю|еженедельно|every week|weekly)\b', re.I), 'weekly'),
     (re.compile(r'\b(по будням|по рабочим дням|weekdays)\b', re.I), 'weekdays'),
     (re.compile(r'\b(каждый месяц|ежемесячно|every month|monthly)\b', re.I), 'monthly'),
+    (re.compile(r'\b(каждый год|ежегодно|каждый\s+год|every year|yearly|annually)\b', re.I), 'yearly'),
 ]
 
 # Strip these words before date parsing so they don't confuse dateparser
 _RECURRENCE_STRIP_RE = re.compile(
-    r'\b(каждый|каждую|каждое|ежедневно|еженедельно|ежемесячно'
-    r'|по\s+будням|по\s+рабочим\s+дням|daily|weekly|monthly|weekdays)\b(\s+\w+)?',
+    r'\b(каждый|каждую|каждое|ежедневно|еженедельно|ежемесячно|ежегодно'
+    r'|по\s+будням|по\s+рабочим\s+дням|daily|weekly|monthly|yearly|annually|weekdays)\b(\s+\w+)?',
     re.I | re.U,
 )
 

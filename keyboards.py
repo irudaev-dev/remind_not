@@ -183,10 +183,29 @@ def edit_choice_keyboard(reminder_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="📝 Текст", callback_data=f"edit_body:{reminder_id}"),
-            InlineKeyboardButton(text="🕐 Время", callback_data=f"edit_time:{reminder_id}"),
+            InlineKeyboardButton(text="🕐 Время",  callback_data=f"edit_time:{reminder_id}"),
         ],
-        [InlineKeyboardButton(text="❌ Отмена", callback_data=f"cancel_action:{reminder_id}")],
+        [InlineKeyboardButton(text="🔁 Повторение", callback_data=f"edit_recurrence:{reminder_id}")],
+        [InlineKeyboardButton(text="❌ Отмена",     callback_data=f"cancel_action:{reminder_id}")],
     ])
+
+
+RECURRENCE_OPTIONS = [
+    ("🔁 Каждый день",    "daily"),
+    ("🔁 По будням",      "weekdays"),
+    ("🔁 Каждую неделю",  "weekly"),
+    ("🔁 Каждый месяц",   "monthly"),
+    ("🔁 Каждый год",     "yearly"),
+    ("❌ Без повторения",  "none"),
+]
+
+def edit_recurrence_keyboard(reminder_id: int) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(text=label, callback_data=f"set_recurrence:{reminder_id}:{value}")]
+        for label, value in RECURRENCE_OPTIONS
+    ]
+    rows.append([InlineKeyboardButton(text="◀ Назад", callback_data=f"edit:{reminder_id}")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def list_keyboard(reminders: list) -> InlineKeyboardMarkup:

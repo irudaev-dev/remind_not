@@ -22,4 +22,8 @@ def next_occurrence(remind_at: datetime, recurrence: str) -> Optional[datetime]:
             m, y = 1, y + 1
         d = min(remind_at.day, calendar.monthrange(y, m)[1])
         return remind_at.replace(year=y, month=m, day=d)
+    if recurrence == "yearly":
+        y = remind_at.year + 1
+        d = min(remind_at.day, calendar.monthrange(y, remind_at.month)[1])
+        return remind_at.replace(year=y, day=d)
     return None
