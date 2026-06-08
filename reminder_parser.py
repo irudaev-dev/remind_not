@@ -57,6 +57,8 @@ _RECURRENCE_STRIP_RE = re.compile(
 # "в 11" → "в 11:00", but not "в 11:30" (already has minutes)
 _BARE_HOUR_RE = re.compile(r'\bв\s+(\d{1,2})\b(?!\s*[:.]\d)', re.U)
 
+# DD.MM.YYYY full date format
+_DDMMYYYY_RE = re.compile(r'(?<!\d)(\d{1,2})\.(0[1-9]|1[0-2])\.(\d{4})(?!\d)', re.U)
 # DD.MM date format (not preceded by "в", not followed by another dot+digits like DD.MM.YYYY)
 _DDMM_RE = re.compile(r'(?<!\d)(\d{1,2})\.(0[1-9]|1[0-2])(?!\d|\.)', re.U)
 _MONTH_NAMES_RU = {
@@ -96,6 +98,11 @@ def _normalize(text: str) -> str:
         if 0 <= h <= 23:
             return f'в {h:02d}:00'
 
+    # "11.06.2026" → "11 июня 2026"
+    text = _DDMMYYYY_RE.sub(
+        lambda m: f"{int(m.group(1))} {_MONTH_NAMES_RU[m.group(2)]} {m.group(3)}",
+        text,
+    )
     # "14.06" → "14 июня" (DD.MM date, not preceded by "в" which would mean time)
     def _replace_ddmm(m):
         preceding = text[:m.start()].rstrip()
@@ -138,7 +145,8 @@ _DATE_RE = re.compile(
     r'|в\s+\d{1,2}[:.]\d{2}(?:\s*(?:утра|вечера|дня|ночи))?'
     r'|в\s+\d{1,2}(?!\s*[:.]\d|[0-9])(?:\s*(?:утра|вечера|дня|ночи))?'
     r'|\d{1,2}[:.]\d{2}'
-    r'|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+в\s+\d{1,2}(?:[:.]\d{2})?)?'
+    r'|\d{1,2}\.\d{2}\.\d{4}'
+    r'|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+\d{4})?(?:\s+в\s+\d{1,2}(?:[:.]\d{2})?)?'
     r'|каждый(?:ую|ое)?\s+\w+|ежедневно|еженедельно|ежемесячно|по\s+будням|по\s+рабочим\s+дням'
     r'|in\s+\d+\s+(?:minutes?|hours?|days?|weeks?|months?)'
     r'|tomorrow(?:\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?'
